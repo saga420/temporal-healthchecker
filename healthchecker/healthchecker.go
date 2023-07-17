@@ -62,9 +62,12 @@ func FormatError(err error) string {
 }
 
 // grpcIsServing checks if a grpc service is serving
-func (hc *HealthChecker) grpcIsServing(svc string, conn *grpc.ClientConn) error {
+func (hc *HealthChecker) grpcIsServing(svc string, conn *grpc.ClientConn, timeout int) error {
 	hcli := healthpb.NewHealthClient(conn)
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(hc.cfg.FrontendService.TimeOut)*time.Second)
+	if timeout < 0 {
+		timeout = 0
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
 	req := &healthpb.HealthCheckRequest{
@@ -142,14 +145,26 @@ func (hc *HealthChecker) BasicCheck() error {
 	defer hc.mu.Unlock()
 
 	var errs *multierror.Error
+
+	var elapsed time.Duration
+
 	if hc.cfg.FrontendService.IsEnabled {
-		errs = multierror.Append(errs, hc.grpcIsServing(fullWorkflowServiceName, hc.grpcConn.frontend))
+		start := time.Now()
+		log.Printf("Checking Temporal frontend service health")
+		errs = multierror.Append(errs, hc.grpcIsServing(fullWorkflowServiceName, hc.grpcConn.frontend, hc.cfg.FrontendService.TimeOut))
+		log.Printf("Checking Temporal frontend service health done. Time elapsed: %v", time.Since(start)-elapsed)
 	}
 	if hc.cfg.HistoryService.IsEnabled {
-		errs = multierror.Append(errs, hc.grpcIsServing(fullHistoryServiceName, hc.grpcConn.history))
+		start := time.Now()
+		log.Printf("Checking Temporal history service health")
+		errs = multierror.Append(errs, hc.grpcIsServing(fullHistoryServiceName, hc.grpcConn.history, hc.cfg.HistoryService.TimeOut))
+		log.Printf("Checking Temporal history service health done. Time elapsed: %v", time.Since(start)-elapsed)
 	}
 	if hc.cfg.MatchingService.IsEnabled {
-		errs = multierror.Append(errs, hc.grpcIsServing(fullMatchingServiceName, hc.grpcConn.matching))
+		start := time.Now()
+		log.Printf("Checking Temporal matching service health")
+		errs = multierror.Append(errs, hc.grpcIsServing(fullMatchingServiceName, hc.grpcConn.matching, hc.cfg.MatchingService.TimeOut))
+		log.Printf("Checking Temporal matching service health done. Time elapsed: %v", time.Since(start)-elapsed)
 	}
 
 	return errs.ErrorOrNil()
@@ -165,27 +180,52 @@ func (hc *HealthChecker) FullCheck() error {
 	var errs *multierror.Error
 	if hc.cfg.FrontendService.IsEnabled {
 
+		var elapsed time.Duration
+		start := time.Now()
+
+		log.Printf("full check started at %s", start)
+
 		err := hc.initialFullCheckClients()
 		if err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("failed to initialize full check clients: %v", err))
 		}
 
+		elapsed = time.Since(start)
+		log.Printf("initialFullCheckClients took %s", elapsed)
+
 		err = hc.checkClusterInfo()
 		if err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("failed to check cluster info: %v", err))
 		}
+
+		elapsed = time.Since(start)
+		log.Printf("checkClusterInfo took %s", elapsed)
+
 		err = hc.checkSystemInfo()
 		if err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("failed to check system info: %v", err))
 		}
+
+		elapsed = time.Since(start)
+		log.Printf("checkSystemInfo took %s", elapsed)
+
 		err = hc.checkNamespaces()
 		if err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("failed to check namespaces: %v", err))
 		}
+
+		elapsed = time.Since(start)
+		log.Printf("checkNamespaces took %s", elapsed)
+
 		err = hc.checkListClusters()
 		if err != nil {
 			errs = multierror.Append(errs, fmt.Errorf("failed to check clusters: %v", err))
 		}
+
+		elapsed = time.Since(start)
+		log.Printf("checkListClusters took %s", elapsed)
+
+		log.Printf("full check finished at %s", time.Now())
 	}
 
 	return errs.ErrorOrNil()

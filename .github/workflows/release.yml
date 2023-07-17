@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.x
+
+      - name: Build binaries
+        run: |
+          make build
+
+      - name: Compute checksums
+        run: |
+          cd ./build/bin/
+          for file in *; do
+            sha256sum "$file" > "$file.sha256"
+          done
+
+      - name: Create release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./build/bin/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

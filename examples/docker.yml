@@ -1,0 +1,5 @@
+healthcheck:
+  test: [ "CMD", "/usr/local/bin/temporal-healthchecker_linux_amd64", "--config", "/ops/healthchecker.json" ]
+  interval: 5s
+  timeout: 10s
+  retries: 12

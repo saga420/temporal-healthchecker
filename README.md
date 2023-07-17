@@ -92,6 +92,37 @@ implementation depends on your actual requirements).
 
 The tool is also designed to be compatible with Docker and Consul health check requirements.
 
+### Consul (see examples/*)
+
+```hcl
+## svc-temporal-frontend.hcl
+service {
+  name = "temporal-frontend"
+  id   = "temporal-frontend-1"
+  tags = ["v1"]
+  port = 7233
+
+  check {
+    id         = "check-temporal-frontend",
+    name       = "Product temporal-frontend status check",
+    service_id = "temporal-frontend-1",
+    args       = ["/usr/local/bin/temporal-healthchecker_linux_amd64", "--config", "/ops/healthchecker.json"],
+    interval   = "5s",
+    timeout    = "10s"
+  }
+}
+```
+
+### Docker (see examples/*)
+
+```yaml
+healthcheck:
+  test: [ "CMD", "/usr/local/bin/temporal-healthchecker_linux_amd64", "--config", "/ops/healthchecker.json" ]
+  interval: 5s
+  timeout: 10s
+  retries: 12
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.

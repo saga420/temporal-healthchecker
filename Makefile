@@ -23,7 +23,7 @@ $(TARGETS):
 	$(eval GOOS := $(word 1,$(subst -, ,$@)))
 	$(eval GOARCH := $(word 2,$(subst -, ,$@)))
 	@echo "$(GREEN)Building for $(GOOS)/$(GOARCH)...$(NORMAL)"
-	GOOS=$(GOOS) GOARCH=$(GOARCH) go build -ldflags "$(LDFLAGS)" -o "build/bin/$(APPNAME)_$(GOOS)_$(GOARCH)"
+	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o "build/bin/$(APPNAME)_$(GOOS)_$(GOARCH)"
 
 .PHONY: clean
 clean:
